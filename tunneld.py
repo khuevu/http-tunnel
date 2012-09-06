@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer 
 import socket
+import cgi
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
     sockets = {}
@@ -11,6 +12,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
     def _get_socket(self):
         id = self._get_connection_id()
+        print 'connection id %d ' % id
         return self.sockets[id] 
 
     def _close_socket(self):
@@ -32,15 +34,28 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         """Create TCP Connection with the RemoteAddr
         """
         id = self._get_connection_id() 
-        req_data = self.rfile.read()
-        print req_data
-        (remote_host, remote_port) = req_data.split(':')
-        remote_port = int(remote_port)
+        print 'connection id %s' % id
+        #ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
+        length = int(self.headers.getheader('content-length'))
+        req_data = self.rfile.read(length)
+        remote_add = cgi.parse_qs(req_data, keep_blank_values=1) 
+        print remote_add
+        remote_host = remote_add['host'][0]
+        remote_port = int(remote_add['port'][0])
+        #remote_address = req_data.split('&')
+        #remote_host = remote_address[0].split('=')[1]
+        #remote_port = int(remote_address[1].split('=')[1])
+        print 'Remote address %s % s' % (remote_host, remote_port)
         #open socket connection to remote server
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((remote_host, remote_port))
         print 'open connection to remote server'
         self.sockets[id] = s
+        #return status ok
+        try: 
+            self.send_response(200)
+        except socket.error, e:
+            print e
 
     def do_PUT(self):
         """Read data from HTTP Request and send over TcpConnection to RemoteAddr

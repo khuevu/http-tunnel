@@ -6,11 +6,6 @@ from uuid import uuid4
 HOST = ''
 PORT = 50067
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((HOST, PORT))
-s.listen(1)
-conn, addr = s.accept()
-print 'Connected by', addr
 
 remote_url = 'localhost'
 remote_port = 8888
@@ -20,17 +15,28 @@ target_port = 80
 
 #generate connection id 
 c_id = uuid4()
+print 'creating tunnel connection with id %s' % str(c_id)
 remote_conn = httplib.HTTPConnection(remote_url, remote_port)
 #send request for tunneling
-params = urllib.urlencode({"@host": target_url, "@port": target_port})
+params = urllib.urlencode({"host": target_url, "port": target_port})
 headers = {"Content-Type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
-remote_conn.request("POST", "/" + c_id, params, headers)
-response = conn.getresponse()
+print 'making request to create connection'
+remote_conn.request("POST", "/" + str(c_id), params, headers)
+response = remote_conn.getresponse()
+print 'Get here ? '
+print response.status
+
+#listen for connection
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((HOST, PORT))
+s.listen(1)
+conn, addr = s.accept()
+print 'Connected by', addr
 
 #create a loop to read and write data
 while True: 
-    #read data
-    remote_conn.request("GET", "/" + c_id)
+    #read data from socket and tunnel to target add. through http connection
+    remote_conn.request("GET", "/" + str(c_id))
     read_res = conn.getresponse()
     if read_res.status != 200:
         break
@@ -38,8 +44,9 @@ while True:
     print data
     conn.sendall(data)
      
-    #Write data 
+    #Retrieve data from HTTP connection and write to the listen socket 
     write_data = s.recv(1024) 
+    print write_data
     if not write_data:
         break
     params = urllib.urlencode({"@data": write_data})
