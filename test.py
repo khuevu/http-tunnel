@@ -1,5 +1,6 @@
 import httplib, urllib
-conn = httplib.HTTPConnection('localhost', 50067)
-conn.request("GET", "/")
+conn = httplib.HTTPConnection('localhost', 50065)
+conn.request("GET", "http://www.google.com")
 response = conn.getresponse()
-print response.status
+print response.status, response.reason
+print response.read()
