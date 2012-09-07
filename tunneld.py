@@ -5,14 +5,13 @@ import cgi
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
     sockets = {}
-    MAX_BUFFER = 1024 * 128
+    MAX_BUFFER = 1024
 
     def _get_connection_id(self):
         return self.path.split('/')[-1]
 
     def _get_socket(self):
         id = self._get_connection_id()
-        print 'connection id %d ' % id
         return self.sockets[id] 
 
     def _close_socket(self):
@@ -29,6 +28,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             remote_data = s.recv(self.MAX_BUFFER)
             self.send_response(200)
             self.wfile.write(remote_data)
+        else:
+            print 'connection has not been established'
 
     def do_POST(self):
         """Create TCP Connection with the RemoteAddr
@@ -64,6 +65,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         s = self.sockets[id]
         send_data = self.rfile.read() 
         s.sendall(send_data)
+        self.send_response(200)
         
 
     def do_DELETE(self): 
