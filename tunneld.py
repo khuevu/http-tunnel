@@ -33,12 +33,20 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         s = self._get_socket()
         if s:
             print 'GET data'
-            data = s.recv(self.MAX_BUFFER)
-            print data
-            self.send_response(200)
-            if data:
+            try:
+                data = s.recv(self.MAX_BUFFER)
+                print data
+                self.send_response(200)
+                if data:
+                    self.end_headers()
+                    self.wfile.write(data)
+            except socket.timeout:
+                print 'Connection Timeout'
+                self.send_response(504)
                 self.end_headers()
-                self.wfile.write(data)
+            except socket.error as ex:
+                print 'Error getting data from target socket: %s' % ex  
+                self.send_response(503)
         else:
             print 'Connection With ID %s has not been established' % self._get_connection_id()
 
@@ -56,7 +64,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         #open socket connection to remote server
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((target_host, target_port))
-        s.settimeout(5)
+        s.settimeout(7)
         print 'Successfully connected'
         #save socket reference
         self.sockets[id] = s
@@ -74,9 +82,16 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         data = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)['data'][0] 
         print 'Writing....'
         print data
-        s.sendall(data)
-        self.send_response(200)
-        
+        try: 
+            s.sendall(data)
+            self.send_response(200)
+        except socket.timeout:
+            print 'Connection Timeout'
+            self.send_response(504)
+        except socket.error as ex:
+            print 'Error sending data from target socket: %s' % ex  
+            self.send_response(503)
+
     def do_DELETE(self): 
         self._close_socket()
         self.send_response(200)

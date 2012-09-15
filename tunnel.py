@@ -39,20 +39,25 @@ class Connection():
             response = self.http_conn.getresponse()
             print response.status 
         except (httplib.HTTPResponse, socket.error) as ex:
-            print "Error: %s" % ex
+            print "Error Sending Data: %s" % ex
 
     def receive(self):
         try: 
             self.http_conn.request("GET", "/" + self.id)
             response = self.http_conn.getresponse()
-            data = response.read()
-            return data
+            if response.status == 200:
+                data = response.read()
+                return data
+            else: 
+                print "GET HTTP Status: %d" % response.status
+                return ""
         except (httplib.HTTPResponse, socket.error) as ex:
-            print "Error: %s" % ex
-            return None
+            print "Error Receiving Data: %s" % ex
+            return "" 
 
     def close(self):
         self.http_conn.request("DELETE", "/" + self.id)
+        self.http_conn.getresponse()
 
 class SendThread(threading.Thread):
 
@@ -107,7 +112,6 @@ class ClientWorker(threading.Thread):
             sender.start()
             receiver.start()
 
-#TODO: use __main__ here instead of a class
 
 def start_tunnel(listen_port, remote_addr, target_addr):
     """Start tunnel"""
