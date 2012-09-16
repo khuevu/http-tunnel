@@ -6,12 +6,8 @@ import argparse
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
 
-    """
-    sockets: contains all sockets connecting to target address for each connection from client
-    """
-
     sockets = {}
-    MAX_BUFFER = 1024 * 50 
+    BUFFER = 1024 * 50 
 
     def _get_connection_id(self):
         return self.path.split('/')[-1]
@@ -34,7 +30,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         if s:
             print 'GET data'
             try:
-                data = s.recv(self.MAX_BUFFER)
+                data = s.recv(self.BUFFER)
                 print data
                 self.send_response(200)
                 if data:
@@ -74,8 +70,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             print e
 
     def do_PUT(self):
-        """Read data from HTTP Request and send to TargetAddress
-        """
+        """Read data from HTTP Request and send to TargetAddress"""
         id = self._get_connection_id()
         s = self.sockets[id]
         length = int(self.headers.getheader('content-length'))

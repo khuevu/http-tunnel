@@ -2,17 +2,17 @@
 import socket
 import httplib, urllib
 from uuid import uuid4
-import time
 import threading
 import argparse
+import sys
 
 BUFFER = 1024 * 50
 
 #set global timeout
-socket.setdefaulttimeout(5)
+socket.setdefaulttimeout(30)
 
 class Connection():
-
+    
     def __init__(self, connection_id, remote_addr):
         self.id = connection_id
         self.http_conn = httplib.HTTPConnection(remote_addr['host'], remote_addr['port'])
@@ -24,6 +24,7 @@ class Connection():
         self.http_conn.request("POST", "/" + self.id, params, headers)
 
         response = self.http_conn.getresponse()
+        response.read()
         if response.status == 200:
             print 'Successfully create connection'
             return True 
@@ -33,10 +34,11 @@ class Connection():
 
     def send(self, data):
         params = urllib.urlencode({"data": data})
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        headers = {"Content-Type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
         try: 
             self.http_conn.request("PUT", "/" + self.id, params, headers)  
             response = self.http_conn.getresponse()
+            response.read()
             print response.status 
         except (httplib.HTTPResponse, socket.error) as ex:
             print "Error Sending Data: %s" % ex
@@ -45,8 +47,8 @@ class Connection():
         try: 
             self.http_conn.request("GET", "/" + self.id)
             response = self.http_conn.getresponse()
+            data = response.read()
             if response.status == 200:
-                data = response.read()
                 return data
             else: 
                 print "GET HTTP Status: %d" % response.status
@@ -69,12 +71,19 @@ class SendThread(threading.Thread):
         threading.Thread.__init__(self, name="Send-Thread")
         self.socket = socket
         self.conn = conn
+        self._stop = threading.Event()
 
     def run(self):
-        while True:
+        while not self.stopped():
             data = self.socket.recv(BUFFER)
-            print 'Send data', data
+            print data
             self.conn.send(data)
+
+    def stop(self):
+        self._stop.set()
+
+    def stopped(self):
+        return self._stop.isSet()
 
 class ReceiveThread(threading.Thread):
 
@@ -86,12 +95,19 @@ class ReceiveThread(threading.Thread):
         threading.Thread.__init__(self, name="Receive-Thread")
         self.socket = socket
         self.conn = conn
+        self._stop = threading.Event()
 
     def run(self):
-        while True:
+        while not self.stopped():
             data = self.conn.receive()
-            print 'Receive data', data
+            print data
             self.socket.sendall(data)
+
+    def stop(self):
+        self._stop.set()
+
+    def stopped(self):
+        return self._stop.isSet()
 
 class ClientWorker(threading.Thread):
 
@@ -104,13 +120,25 @@ class ClientWorker(threading.Thread):
     def run(self):
         #generate unique connection ID
         connection_id = str(uuid4())
-        connection = Connection(connection_id, self.remote_addr)
+        #main connection for create and close
+        self.connection = Connection(connection_id, self.remote_addr)
 
-        if connection.create(self.target_addr):
-            sender = SendThread(self.socket, Connection(connection_id, self.remote_addr))
-            receiver = ReceiveThread(self.socket, Connection(connection_id, self.remote_addr))
-            sender.start()
-            receiver.start()
+        if self.connection.create(self.target_addr):
+            self.sender = SendThread(self.socket, Connection(connection_id, self.remote_addr))
+            self.receiver = ReceiveThread(self.socket, Connection(connection_id, self.remote_addr))
+            self.sender.start()
+            self.receiver.start()
+
+    def stop(self):
+        #stop read and send threads
+        self.sender.stop()
+        self.receiver.stop()
+        #send close signal to remote server
+        self.connection.close()
+        #wait for read and send threads to stop and close local socket
+        self.sender.join()
+        self.receiver.join()
+        self.socket.close()
 
 
 def start_tunnel(listen_port, remote_addr, target_addr):
@@ -120,12 +148,21 @@ def start_tunnel(listen_port, remote_addr, target_addr):
     listen_sock.bind(('', listen_port))
     listen_sock.listen(1)
     print "waiting for connection"
-    while True:
-        c_sock, addr = listen_sock.accept() 
-        print "connected by ", addr
-        worker = ClientWorker(c_sock, remote_addr, target_addr)
-        worker.start()
-
+    workers = []
+    try:
+        while True:
+            c_sock, addr = listen_sock.accept() 
+            print "connected by ", addr
+            worker = ClientWorker(c_sock, remote_addr, target_addr)
+            workers.append(worker)
+            worker.start()
+    except (KeyboardInterrupt, SystemExit):
+        listen_sock.close()
+        for w in workers:
+            w.stop()
+        for w in workers:
+            w.join()
+        sys.exit()
 
 if __name__ == "__main__":
     """Parse argument from command line and start tunnel"""
