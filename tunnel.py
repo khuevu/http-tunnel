@@ -145,7 +145,7 @@ def start_tunnel(listen_port, remote_addr, target_addr):
     """Start tunnel"""
     listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listen_sock.settimeout(None)
-    listen_sock.bind(('', listen_port))
+    listen_sock.bind(('', int(listen_port)))
     listen_sock.listen(1)
     print "waiting for connection"
     workers = []
