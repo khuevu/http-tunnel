@@ -99,6 +99,6 @@ def run_server(port, server_class=HTTPServer, handler_class=ProxyRequestHandler)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start Tunnel Server")
-    parser.add_argument("-p", default=9999, dest='port', help='Specify port number server will listen to')
+    parser.add_argument("-p", default=9999, dest='port', help='Specify port number server will listen to', type=int)
     args = parser.parse_args()
     run_server(args.port)
