@@ -145,7 +145,7 @@ def start_tunnel(listen_port, remote_addr, target_addr):
     """Start tunnel"""
     listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listen_sock.settimeout(None)
-    listen_sock.bind(('', listen_port))
+    listen_sock.bind(('', int(listen_port)))
     listen_sock.listen(1)
     print "waiting for connection"
     workers = []
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     """Parse argument from command line and start tunnel"""
 
     parser = argparse.ArgumentParser(description='Start Tunnel')
-    parser.add_argument('-p', default=8889, dest='listen_port', help='Port the tunnel listens to, (default to 8889)')
+    parser.add_argument('-p', default=8889, dest='listen_port', help='Port the tunnel listens to, (default to 8889)', type=int)
     parser.add_argument('target', metavar='Target Address', help='Specify the host and port of the target address in format Host:Port')
     parser.add_argument('-r', default='localhost:9999', dest='remote', help='Specify the host and port of the remote server to tunnel to (Default to localhost:9999)')
 
