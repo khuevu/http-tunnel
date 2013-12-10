@@ -177,13 +177,13 @@ if __name__ == "__main__":
     parser.add_argument('-p', default=8889, dest='listen_port', help='Port the tunnel listens to, (default to 8889)', type=int)
     parser.add_argument('target', metavar='Target Address', help='Specify the host and port of the target address in format Host:Port')
     parser.add_argument('-r', default='localhost:9999', dest='remote', help='Specify the host and port of the remote server to tunnel to (Default to localhost:9999)')
-    parser.add_argument('-o', default='', dest='proxy', help='Specify the host and port of the proxy server')
+    parser.add_argument('-o', default='', dest='proxy', help='Specify the host and port of the proxy server(host:port)')
 
     args = parser.parse_args()
 
     target_addr = {"host": args.target.split(":")[0], "port": args.target.split(":")[1]}
     remote_addr = {"host": args.remote.split(":")[0], "port": args.remote.split(":")[1]}
-    proxy_addr = {"host": args.proxy.split(":")[0], "port": args.proxy.split(":")[1]}
+    proxy_addr = {"host": args.proxy.split(":")[0], "port": args.proxy.split(":")[1]} if (args.proxy) else {}
     start_tunnel(args.listen_port, remote_addr, target_addr, proxy_addr)
 
 
