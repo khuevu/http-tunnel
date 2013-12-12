@@ -13,15 +13,20 @@ socket.setdefaulttimeout(30)
 
 class Connection():
     
-    def __init__(self, connection_id, remote_addr):
+    def __init__(self, connection_id, remote_addr, proxy_addr):
         self.id = connection_id
-        self.http_conn = httplib.HTTPConnection(remote_addr['host'], remote_addr['port'])
+        conn_dest = proxy_addr if proxy_addr else remote_addr
+        self.http_conn = httplib.HTTPConnection(conn_dest['host'], conn_dest['port'])
+        self.remote_addr = remote_addr
+
+    def _url(self, url):
+        return "http://{host}:{port}{url}".format(host=self.remote_addr['host'], port=self.remote_addr['port'], url=url)
 
     def create(self, target_addr):
         params = urllib.urlencode({"host": target_addr['host'], "port": target_addr['port']})
         headers = {"Content-Type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
 
-        self.http_conn.request("POST", "/" + self.id, params, headers)
+        self.http_conn.request("POST", self._url("/" + self.id), params, headers)
 
         response = self.http_conn.getresponse()
         response.read()
@@ -36,7 +41,7 @@ class Connection():
         params = urllib.urlencode({"data": data})
         headers = {"Content-Type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
         try: 
-            self.http_conn.request("PUT", "/" + self.id, params, headers)  
+            self.http_conn.request("PUT", self._url("/" + self.id), params, headers)
             response = self.http_conn.getresponse()
             response.read()
             print response.status 
@@ -111,21 +116,22 @@ class ReceiveThread(threading.Thread):
 
 class ClientWorker(threading.Thread):
 
-    def __init__(self, socket, remote_addr, target_addr):
+    def __init__(self, socket, remote_addr, target_addr, proxy_addr):
         threading.Thread.__init__(self)
         self.socket = socket
         self.remote_addr = remote_addr 
         self.target_addr = target_addr
+        self.proxy_addr = proxy_addr
 
     def run(self):
         #generate unique connection ID
         connection_id = str(uuid4())
         #main connection for create and close
-        self.connection = Connection(connection_id, self.remote_addr)
+        self.connection = Connection(connection_id, self.remote_addr, self.proxy_addr)
 
         if self.connection.create(self.target_addr):
-            self.sender = SendThread(self.socket, Connection(connection_id, self.remote_addr))
-            self.receiver = ReceiveThread(self.socket, Connection(connection_id, self.remote_addr))
+            self.sender = SendThread(self.socket, Connection(connection_id, self.remote_addr, self.proxy_addr))
+            self.receiver = ReceiveThread(self.socket, Connection(connection_id, self.remote_addr, self.proxy_addr))
             self.sender.start()
             self.receiver.start()
 
@@ -141,7 +147,7 @@ class ClientWorker(threading.Thread):
         self.socket.close()
 
 
-def start_tunnel(listen_port, remote_addr, target_addr):
+def start_tunnel(listen_port, remote_addr, target_addr, proxy_addr):
     """Start tunnel"""
     listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listen_sock.settimeout(None)
@@ -153,7 +159,7 @@ def start_tunnel(listen_port, remote_addr, target_addr):
         while True:
             c_sock, addr = listen_sock.accept() 
             print "connected by ", addr
-            worker = ClientWorker(c_sock, remote_addr, target_addr)
+            worker = ClientWorker(c_sock, remote_addr, target_addr, proxy_addr)
             workers.append(worker)
             worker.start()
     except (KeyboardInterrupt, SystemExit):
@@ -171,12 +177,14 @@ if __name__ == "__main__":
     parser.add_argument('-p', default=8889, dest='listen_port', help='Port the tunnel listens to, (default to 8889)', type=int)
     parser.add_argument('target', metavar='Target Address', help='Specify the host and port of the target address in format Host:Port')
     parser.add_argument('-r', default='localhost:9999', dest='remote', help='Specify the host and port of the remote server to tunnel to (Default to localhost:9999)')
+    parser.add_argument('-o', default='', dest='proxy', help='Specify the host and port of the proxy server(host:port)')
 
     args = parser.parse_args()
 
     target_addr = {"host": args.target.split(":")[0], "port": args.target.split(":")[1]}
     remote_addr = {"host": args.remote.split(":")[0], "port": args.remote.split(":")[1]}
-    start_tunnel(args.listen_port, remote_addr, target_addr)
+    proxy_addr = {"host": args.proxy.split(":")[0], "port": args.proxy.split(":")[1]} if (args.proxy) else {}
+    start_tunnel(args.listen_port, remote_addr, target_addr, proxy_addr)
 
 
 

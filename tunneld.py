@@ -33,8 +33,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 data = s.recv(self.BUFFER)
                 print data
                 self.send_response(200)
+                self.end_headers()
                 if data:
-                    self.end_headers()
                     self.wfile.write(data)
             except socket.timeout:
                 print 'Connection Timeout'
@@ -43,6 +43,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             except socket.error as ex:
                 print 'Error getting data from target socket: %s' % ex  
                 self.send_response(503)
+                self.end_headers()
         else:
             print 'Connection With ID %s has not been established' % self._get_connection_id()
 
@@ -66,6 +67,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         self.sockets[id] = s
         try: 
             self.send_response(200)
+            self.end_headers()
         except socket.error, e:
             print e
 
@@ -86,10 +88,12 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         except socket.error as ex:
             print 'Error sending data from target socket: %s' % ex  
             self.send_response(503)
+        self.end_headers()
 
     def do_DELETE(self): 
         self._close_socket()
         self.send_response(200)
+        self.end_headers()
 
 def run_server(port, server_class=HTTPServer, handler_class=ProxyRequestHandler): 
     server_address = ('', port)
