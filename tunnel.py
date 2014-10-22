@@ -70,11 +70,11 @@ class SendThread(threading.Thread):
     Thread to send data to remote host
     """
     
-    def __init__(self, client):
+    def __init__(self, client, connection):
         threading.Thread.__init__(self, name="Send-Thread")
         self.client = client
         self.socket = client.socket
-        self.conn = client.connection
+        self.conn = connection
         self._stop = threading.Event()
 
     def run(self):
@@ -105,11 +105,11 @@ class ReceiveThread(threading.Thread):
     Thread to receive data from remote host
     """
 
-    def __init__(self, client):
+    def __init__(self, client, connection):
         threading.Thread.__init__(self, name="Receive-Thread")
         self.client = client
         self.socket = client.socket
-        self.conn = client.connection
+        self.conn = connection
         self._stop = threading.Event()
 
     def run(self):
@@ -147,8 +147,10 @@ class ClientWorker(object):
 
         if self.connection.create(self.target_addr):
             self.running = True
-            self.sender = SendThread(self)
-            self.receiver = ReceiveThread(self)
+            self.sender = SendThread(self, Connection(connection_id, self.remote_addr, self.proxy_addr)
+)
+            self.receiver = ReceiveThread(self, Connection(connection_id, self.remote_addr, self.proxy_addr)
+)
             self.sender.start()
             self.receiver.start()
 
