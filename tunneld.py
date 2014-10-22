@@ -16,7 +16,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
     def _get_socket(self):
         """get the socket which connects to the target address for this connection"""
         id = self._get_connection_id()
-        return self.sockets[id] 
+        return self.sockets.get(id, None)
 
     def _close_socket(self):
         """ close the current socket"""
@@ -24,6 +24,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         s = self.sockets[id]
         if s:
             s.close()
+            del self.sockets[id]
 
     def do_GET(self):
         """GET: Read data from TargetAddress and return to client through http response"""
@@ -84,6 +85,11 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         """Read data from HTTP Request and send to TargetAddress"""
         id = self._get_connection_id()
         s = self.sockets[id]
+        if not s:
+            print "Connection with id %s doesn't exist" % id
+            self.send_response(400)
+            self.end_headers()
+            return
         length = int(self.headers.getheader('content-length'))
         data = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)['data'][0] 
 

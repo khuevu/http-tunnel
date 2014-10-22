@@ -61,6 +61,7 @@ class Connection():
             return None 
 
     def close(self):
+        print "Close connection to target at remote tunnel"
         self.http_conn.request("DELETE", "/" + self.id)
         self.http_conn.getresponse()
 
@@ -84,8 +85,10 @@ class SendThread(threading.Thread):
                 data = self.socket.recv(BUFFER)
                 if data == '': 
                     print "Client's socket connection broken"
+                    # There should be a nicer way to stop receiver
+                    self.client.receiver.stop()
+                    self.client.receiver.join()
                     self.conn.close()
-                    self.client.running = False
                     return
 
                 print "Sending data ... %s " % data
@@ -113,7 +116,7 @@ class ReceiveThread(threading.Thread):
         self._stop = threading.Event()
 
     def run(self):
-        while not self.stopped() and self.client.running:
+        while not self.stopped():
             print "Retreiving data from remote tunneld"
             data = self.conn.receive()
             if data:
@@ -137,7 +140,6 @@ class ClientWorker(object):
         self.remote_addr = remote_addr 
         self.target_addr = target_addr
         self.proxy_addr = proxy_addr
-        self.running = False
 
     def start(self):
         #generate unique connection ID
@@ -146,7 +148,6 @@ class ClientWorker(object):
         self.connection = Connection(connection_id, self.remote_addr, self.proxy_addr)
 
         if self.connection.create(self.target_addr):
-            self.running = True
             self.sender = SendThread(self, Connection(connection_id, self.remote_addr, self.proxy_addr)
 )
             self.receiver = ReceiveThread(self, Connection(connection_id, self.remote_addr, self.proxy_addr)
@@ -156,7 +157,6 @@ class ClientWorker(object):
 
     def stop(self):
         #stop read and send threads
-        self.running = False
         self.sender.stop()
         self.receiver.stop()
         #send close signal to remote server
