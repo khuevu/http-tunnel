@@ -19,3 +19,6 @@ To test the IRC connection via the tunnel:
     nc 127.0.0.1 8765
     NICK abc
 
+Credit: 
+This project was inspired by [supertunnel
+project](https://code.google.com/p/supertunnel/)
