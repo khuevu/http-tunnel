@@ -22,3 +22,7 @@ To test the IRC connection via the tunnel:
 Credit: 
 This project was inspired by [supertunnel
 project](https://code.google.com/p/supertunnel/)
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/khuevu/http-tunnel/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
